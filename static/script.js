@@ -58,24 +58,20 @@ window.addEventListener("error", function (e) {
 // DARK / LIGHT THEME TOGGLE
 // ======================================================
 (function themeMode() {
-    const btns = ["themeToggle", "themeToggleM"]
-        .map(function (id) { return document.getElementById(id); })
-        .filter(Boolean);
+    const btn = document.getElementById("themeToggle");
 
     function apply() {
         const dark =
             document.documentElement.getAttribute("data-theme") === "dark";
+        const lbl = btn && btn.querySelector(".theme-toggle-label");
         const text = dark ? "☀️ Light mode" : "🌙 Dark mode";
-        btns.forEach(function (btn) {
-            const lbl = btn && btn.querySelector(".theme-toggle-label");
-            if (lbl) { lbl.textContent = text; }
-            else if (btn) { btn.textContent = text; }
-        });
+        if (lbl) { lbl.textContent = text; }
+        else if (btn) { btn.textContent = text; }
     }
 
     apply();
 
-    btns.forEach(function (btn) {
+    if (btn) {
         btn.addEventListener("click", function () {
             const dark =
                 document.documentElement.getAttribute("data-theme") === "dark";
@@ -88,7 +84,7 @@ window.addEventListener("error", function (e) {
             }
             apply();
         });
-    });
+    }
 })();
 
 
@@ -705,13 +701,17 @@ document.querySelectorAll(".nav-item").forEach(button => {
 
 
     // Reset
-    ["resetBtn", "resetBtnM"].map(function (id) {
-        return document.getElementById(id);
-    }).filter(Boolean).forEach(function (button) {
-        button.addEventListener("click", function () {
-            location.reload();
-        });
-    });
+    const resetButton =
+        document.getElementById("resetBtn");
+
+    if (resetButton) {
+
+        resetButton.addEventListener(
+            "click",
+            () => location.reload()
+        );
+
+    }
 
 
     // Consent

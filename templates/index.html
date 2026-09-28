@@ -8,7 +8,7 @@
   <script>try{var _t=localStorage.getItem('mw-theme');if(_t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <script>window.__latestAssessment = {{ assessment|tojson|safe }};</script>
   <script>window.APP_VAPID_PUBLIC_KEY = {{ vapid_public_key|tojson }};</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=202609100031">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=202609100032">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
@@ -39,9 +39,6 @@
 
     <button class="nav-item logout-item" type="button" id="logoutBtn"><span>Logout</span>
     </button>
-
-    <button class="nav-item mobile-tools" type="button" id="resetBtnM">Reset Demo Data</button>
-    <button class="nav-item mobile-tools" type="button" id="themeToggleM"></button>
 
     </nav>
     <div class="sidebar-bottom"><div class="privacy"><b>Privacy First</b><br><small>Your demo data stays in this browser.</small></div>
@@ -1500,7 +1497,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{{ url_for('static', filename='script.js') }}?v=202609100031"></script>
+<script src="{{ url_for('static', filename='script.js') }}?v=202609100032"></script>
 
   <div id="reportDocument" class="report-document">
     <div class="report-header">
