@@ -178,7 +178,18 @@ def csrf_protect():
     if request.path in CSRF_EXEMPT:
         return
     expected = session.get("csrf_token")
-    if not expected or request.headers.get("X-CSRFToken") != expected:
+    if not expected:
+        abort(403)
+    sent = request.headers.get("X-CSRFToken")
+    # Fallback: allow the token in a JSON body. Needed for requests that
+    # cannot set custom headers, e.g. navigator.sendBeacon.
+    if sent is None and request.mimetype == "application/json":
+        try:
+            body = request.get_json(silent=True) or {}
+        except Exception:
+            body = {}
+        sent = body.get("csrf_token") if isinstance(body, dict) else None
+    if not sent or sent != expected:
         abort(403)
 
 

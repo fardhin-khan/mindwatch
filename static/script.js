@@ -6432,7 +6432,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const data = JSON.stringify({
             active_seconds: Math.round(usageActive),
             idle_seconds: Math.round(usageIdle),
-            interactions: usageInteractions
+            interactions: usageInteractions,
+            csrf_token: csrfToken()
         });
         if (navigator.sendBeacon) {
             const blob = new Blob([data], { type: "application/json" });
