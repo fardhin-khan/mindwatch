@@ -42,8 +42,6 @@
 
     </nav>
     <div class="sidebar-bottom"><div class="privacy"><b>Privacy First</b><br><small>Your demo data stays in this browser.</small></div>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode"><span class="theme-toggle-track"><i class="ico-sun">☀</i><i class="ico-moon">☾</i><span class="theme-toggle-thumb"></span></span><span class="theme-toggle-label">Dark mode</span></button>
-      <button id="resetBtn" class="outline-btn" type="button">Reset Demo Data</button>
     </div>
   </aside>
 
@@ -57,6 +55,9 @@
       </div>
       <div class="profile"><div class="avatar">{{ user_name[0] }}</div>
         <div><b>{{ user_name }}</b><span>Account</span></div>
+      </div>
+      <div class="top-actions"><div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle dark mode"><span class="theme-toggle-track"><i class="ico-sun">☀</i><i class="ico-moon">☾</i><span class="theme-toggle-thumb"></span></span><span class="theme-toggle-label" id="themeToggleLabel">Dark mode</span></div>
+        <button id="resetBtn" class="outline-btn" type="button">Reset Demo Data</button>
       </div>
     </header>
 

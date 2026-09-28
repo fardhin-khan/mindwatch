@@ -2941,3 +2941,8 @@ html[data-theme="dark"] .hr-advice[data-level="high"]{background:#2b1418;border-
 .fb-star.active{color:#f5a623}
 html[data-theme="dark"] .fb-star{color:#4a4f5c}
 html[data-theme="dark"] .fb-star.active{color:#f7b733}
+
+/* ===== Top bar actions (dark mode + reset) ===== */
+.top-actions{display:flex;align-items:center;gap:12px}
+.top-actions .theme-toggle{width:auto;margin:0;padding:8px 12px}
+@media(max-width:700px){.top-actions{gap:8px}.top-actions #resetBtn{padding:8px 10px;font-size:12px}}
