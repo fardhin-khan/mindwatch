@@ -1526,19 +1526,6 @@ def log_usage():
 
         connection = get_db_connection()
         cursor = connection.cursor()
-        cursor.execute(
-            "SELECT app_usage FROM consent WHERE user_id = %s",
-            (session["user_id"],)
-        )
-        row = cursor.fetchone()
-
-        if not row or not row[0]:
-            cursor.close()
-            connection.close()
-            return jsonify({
-                "success": False,
-                "message": "App-usage collection not consented."
-            }), 403
 
         active = int(data.get("active_seconds") or 0)
         idle = int(data.get("idle_seconds") or 0)
@@ -1575,19 +1562,6 @@ def save_health():
 
         connection = get_db_connection()
         cursor = connection.cursor()
-        cursor.execute(
-            "SELECT health_data FROM consent WHERE user_id = %s",
-            (session["user_id"],)
-        )
-        row = cursor.fetchone()
-
-        if not row or not row[0]:
-            cursor.close()
-            connection.close()
-            return jsonify({
-                "success": False,
-                "message": "Health-data collection not consented."
-            }), 403
 
         hr = data.get("heart_rate")
         sleep = data.get("sleep_hours")
