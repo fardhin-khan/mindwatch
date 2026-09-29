@@ -8,12 +8,22 @@ Run it on the server (PythonAnywhere -> Bash) from the project folder, e.g.
 
 It creates the account if it does not exist yet, otherwise it just replaces
 the password. Use a strong password - this account opens the feedback inbox.
+
+The script loads .env exactly like the web app does, so it always writes to
+the same database file the site actually reads from.
 """
 
+import os
 import sqlite3
 import sys
 
-from werkzeug.security import generate_password_hash
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import _db_path
 
@@ -31,8 +41,17 @@ def main(argv):
         print("Password must be at least 8 characters.")
         return 1
 
-    connection = sqlite3.connect(_db_path())
+    db_path = _db_path()
+    print(f"Database : {db_path}")
+    print(f"Exists   : {os.path.exists(db_path)}")
+    print(f"Size     : {os.path.getsize(db_path) if os.path.exists(db_path) else 0} bytes")
+    print(f"MINDWATCH_DB_FILE = {os.environ.get('MINDWATCH_DB_FILE') or '(not set)'}")
+    print(f"MINDWATCH_ADMIN_EMAIL = {os.environ.get('MINDWATCH_ADMIN_EMAIL') or '(not set)'}")
+    print("-" * 60)
+
+    connection = sqlite3.connect(db_path)
     cursor = connection.cursor()
+
     hashed = generate_password_hash(password)
 
     cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
@@ -50,11 +69,28 @@ def main(argv):
         action = "created"
 
     connection.commit()
+
+    # Read back and prove the new password really verifies.
+    cursor.execute(
+        "SELECT password FROM users WHERE email = ?", (email,)
+    )
+    row = cursor.fetchone()
+    verified = bool(row and check_password_hash(row[0], password))
+
+    cursor.execute("SELECT email FROM users ORDER BY id")
+    accounts = [r[0] for r in cursor.fetchall()]
+
     cursor.close()
     connection.close()
 
     print(f"Account {action}: {email}")
-    print("You can now log in at /login with that email and password.")
+    print(f"Password verifies: {verified}")
+    print(f"Accounts in this database: {accounts}")
+    print("-" * 60)
+    if not verified:
+        print("FAILED - password was not stored correctly.")
+        return 1
+    print("Now click Web -> Reload, then log in with this email and password.")
     return 0
 
 
