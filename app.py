@@ -1,3 +1,4 @@
+import hmac
 import os
 import secrets
 
@@ -52,6 +53,22 @@ def no_cache(response):
         "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+
+    # Hardening headers (CSP is intentionally omitted: the templates use
+    # inline scripts, so a strict CSP would break the whole app).
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Referrer-Policy", "strict-origin-when-cross-origin"
+    )
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "geolocation=(), camera=(), microphone=(), payment=(), usb=()",
+    )
+    if request.is_secure:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
     return response
 
 
@@ -144,6 +161,63 @@ def _safe_error(e):
     """Log the real exception server-side; never echo it back to the client."""
     app.logger.error("Request failed: %s", e, exc_info=True)
     return "Something went wrong. Please try again."
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting (in-memory, no extra dependency so it deploys as-is).
+# Buckets are keyed per client IP AND per account/identifier, so visitors
+# behind one NAT cannot lock each other out of unrelated accounts.
+# ---------------------------------------------------------------------------
+_RATE_LOCK = threading.Lock()
+_RATE_BUCKETS = {}
+_RATE_MAX_KEYS = 10000
+
+
+def _client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        # Take the right-most entry: proxies append the real client address,
+        # so anything to the left of it may have been spoofed by the caller.
+        return forwarded.split(",")[-1].strip()
+    return request.remote_addr or "unknown"
+
+
+def _rate_hit(key, limit, window):
+    """Record one attempt. Returns (allowed, retry_after_seconds)."""
+    now = time.time()
+    with _RATE_LOCK:
+        hits = [t for t in _RATE_BUCKETS.get(key, ()) if now - t < window]
+        if len(hits) >= limit:
+            return False, max(int(window - (now - hits[0])) + 1, 1)
+        hits.append(now)
+        if len(_RATE_BUCKETS) >= _RATE_MAX_KEYS:
+            cutoff = now - window
+            for k in list(_RATE_BUCKETS):
+                if not _RATE_BUCKETS[k] or _RATE_BUCKETS[k][-1] < cutoff:
+                    del _RATE_BUCKETS[k]
+        _RATE_BUCKETS[key] = hits
+    return True, 0
+
+
+def rate_check(*checks):
+    """checks = (bucket, identity, limit, window); returns retry seconds or 0."""
+    ip = _client_ip()
+    for bucket, identity, limit, window in checks:
+        allowed, retry = _rate_hit(f"{bucket}|{ip}|{identity}", limit, window)
+        if not allowed:
+            return retry
+        allowed, retry = _rate_hit(f"{bucket}ip|{ip}", limit * 8, window)
+        if not allowed:
+            return retry
+    return 0
+
+
+def rate_limit_response(retry):
+    message = f"Too many attempts. Please wait {retry} second(s) and try again."
+    # The dev portal posts a plain HTML form, everything else expects JSON.
+    if request.path.startswith("/dev/"):
+        return message, 429, {"Content-Type": "text/plain; charset=utf-8"}
+    return jsonify({"success": False, "message": message}), 429
 
 # Secure session cookie settings
 app.config.update(
@@ -264,6 +338,12 @@ def signup():
         email = request.form["email"]
         password = request.form["password"]
 
+        retry = rate_check(
+            ("signup", (email or "").strip().lower() or "-", 5, 600),
+        )
+        if retry:
+            return rate_limit_response(retry)
+
         hashed_password = generate_password_hash(password)
 
         try:
@@ -319,6 +399,12 @@ def login():
 
         email = request.form["email"]
         password = request.form["password"]
+
+        retry = rate_check(
+            ("login", (email or "").strip().lower() or "-", 8, 300),
+        )
+        if retry:
+            return rate_limit_response(retry)
 
         try:
             connection = get_db_connection()
@@ -2148,6 +2234,11 @@ LIMIT 20
 @app.route("/dev/login", methods=["GET", "POST"])
 def dev_login():
 
+    # The portal only exists when both credentials are configured; otherwise
+    # the route does not exist as far as the outside world is concerned.
+    if not (DEV_LOGIN and DEV_PASSWORD):
+        abort(404)
+
     error = None
 
     if request.method == "POST":
@@ -2155,10 +2246,22 @@ def dev_login():
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
 
-        if (
-            DEV_LOGIN and username == DEV_LOGIN and
-            DEV_PASSWORD and password == DEV_PASSWORD
-        ):
+        retry = rate_check(
+            ("devlogin", username.lower() or "-", 5, 900),
+        )
+        if retry:
+            return rate_limit_response(retry)
+
+        # Constant-time comparison so the credentials cannot be guessed by
+        # measuring how long a wrong answer takes to come back.
+        user_ok = hmac.compare_digest(
+            username.encode("utf-8"), DEV_LOGIN.encode("utf-8")
+        )
+        pass_ok = hmac.compare_digest(
+            password.encode("utf-8"), DEV_PASSWORD.encode("utf-8")
+        )
+
+        if user_ok and pass_ok:
             session["dev_mode"] = True
             return redirect(url_for("feedback_inbox_page"))
 
@@ -2179,9 +2282,15 @@ def feedback_inbox_page():
 @app.route("/api/all-feedback", methods=["GET"])
 def all_feedback():
 
+    retry = rate_check(("apitoken", "attempt", 30, 60))
+    if retry:
+        return rate_limit_response(retry)
+
     header_token = request.headers.get("X-Admin-Token", "")
     session_ok = is_admin_user() or is_dev_portal()
-    token_ok = bool(ADMIN_TOKEN) and header_token == ADMIN_TOKEN
+    token_ok = bool(ADMIN_TOKEN) and hmac.compare_digest(
+        header_token.encode("utf-8"), ADMIN_TOKEN.encode("utf-8")
+    )
 
     if not (session_ok or token_ok):
         return jsonify({
