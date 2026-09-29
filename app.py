@@ -71,8 +71,53 @@ def service_worker():
         body = f.read()
     return Response(body, mimetype="application/javascript")
 
-# Secret key for login sessions (prefer environment variable)
-app.secret_key = os.environ.get("MINDWATCH_SECRET_KEY", "mindwatch-secret-key")
+# Secret key for login sessions.
+# Priority: MINDWATCH_SECRET_KEY -> persisted .secret_key file -> random key.
+# A hardcoded fallback is deliberately NOT used: anyone who knows the default
+# can sign forged session cookies and log in as another user.
+def _load_secret_key():
+    env_key = (os.environ.get("MINDWATCH_SECRET_KEY") or "").strip()
+    if len(env_key) >= 32:
+        return env_key
+
+    key_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), ".secret_key"
+    )
+
+    try:
+        with open(key_file, "r", encoding="utf-8") as fh:
+            stored = fh.read().strip()
+        if len(stored) >= 32:
+            return stored
+    except OSError:
+        pass
+
+    new_key = secrets.token_hex(32)
+    try:
+        fd = os.open(key_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(new_key)
+        return new_key
+    except FileExistsError:
+        try:
+            with open(key_file, "r", encoding="utf-8") as fh:
+                stored = fh.read().strip()
+            if len(stored) >= 32:
+                return stored
+        except OSError:
+            pass
+    except OSError:
+        pass
+
+    print(
+        "SECRET KEY WARNING: MINDWATCH_SECRET_KEY is not set and "
+        "the key file could not be written, so sessions will reset "
+        "every time the app restarts. Set MINDWATCH_SECRET_KEY."
+    )
+    return new_key
+
+
+app.secret_key = _load_secret_key()
 
 # Token a developer uses to open the feedback inbox
 ADMIN_TOKEN = os.environ.get("MINDWATCH_ADMIN_TOKEN", "")
@@ -93,6 +138,12 @@ def is_admin_user():
 
 def is_dev_portal():
     return bool(session.get("dev_mode"))
+
+
+def _safe_error(e):
+    """Log the real exception server-side; never echo it back to the client."""
+    app.logger.error("Request failed: %s", e, exc_info=True)
+    return "Something went wrong. Please try again."
 
 # Secure session cookie settings
 app.config.update(
@@ -219,6 +270,18 @@ def signup():
             connection = get_db_connection()
             cursor = connection.cursor()
 
+            cursor.execute(
+                "SELECT id FROM users WHERE email = %s",
+                (email,)
+            )
+            if cursor.fetchone():
+                cursor.close()
+                connection.close()
+                return jsonify({
+                    "success": False,
+                    "message": "An account with that email already exists. Try logging in instead."
+                })
+
             sql = """
             INSERT INTO users (name, email, password)
             VALUES (%s, %s, %s)
@@ -240,7 +303,7 @@ def signup():
         except Exception as e:
             return jsonify({
                 "success": False,
-                "message": f"Signup failed: {e}"
+                "message": _safe_error(e)
             })
 
     return render_template("signup.html")
@@ -296,7 +359,8 @@ def login():
                 return "Invalid email or password."
 
         except Exception as e:
-            return f"Login failed: {e}"
+            _safe_error(e)
+            return "Invalid email or password."
 
     return render_template("login.html")
 
@@ -355,7 +419,7 @@ def push_subscribe():
         return jsonify({"success": True, "subscription_id": sub_id})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 @app.route("/push/schedule", methods=["POST"])
@@ -386,7 +450,7 @@ def push_schedule():
         return jsonify({"success": True})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 @app.route("/push/unsubscribe", methods=["POST"])
@@ -416,7 +480,7 @@ def push_unsubscribe():
         return jsonify({"success": True})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 def push_reminder_scheduler():
@@ -531,7 +595,12 @@ def dashboard():
         )
 
     except Exception as e:
-        return f"Dashboard failed: {e}"
+        _safe_error(e)
+        return (
+            "Something went wrong while loading your dashboard. "
+            "Please reload the page.",
+            500,
+        )
 
     # =========================
 # ASSESSMENT HISTORY
@@ -598,7 +667,7 @@ ORDER BY assessments.created_at DESC
 
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 
@@ -1103,7 +1172,7 @@ def nearby_clinics():
     except Exception as e:
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 @app.route("/analytics-data")
@@ -1148,7 +1217,7 @@ def analytics_data():
 
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
     
 @app.route("/logout", methods=["GET", "POST"])
@@ -1241,7 +1310,7 @@ def save_assessment():
 
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 # =========================
@@ -1302,7 +1371,7 @@ def save_monitoring_session():
 
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 
@@ -1354,7 +1423,7 @@ ORDER BY collected_at DESC
 
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 # =========================
@@ -1461,7 +1530,7 @@ def save_consent():
 
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
     # =========================
@@ -1512,7 +1581,7 @@ def get_consent():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 # =========================
@@ -1548,7 +1617,7 @@ def log_usage():
                         "message": "Usage session recorded."})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 # =========================
@@ -1587,7 +1656,7 @@ def save_health():
                         "message": "Real health data saved."})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 @app.route("/get-health", methods=["GET"])
@@ -1623,7 +1692,7 @@ def get_health():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
     # =========================
@@ -1664,7 +1733,7 @@ def chat_history():
         ]})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 @app.route("/api/usage-stats", methods=["GET"])
@@ -1714,7 +1783,7 @@ def usage_stats():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 @app.route("/api/mood-checkin", methods=["POST"])
@@ -1750,7 +1819,7 @@ def mood_checkin():
                         "message": "Mood check-in saved."})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 @app.route("/api/mood-history", methods=["GET"])
@@ -1780,7 +1849,7 @@ def mood_history():
         return jsonify({"success": True, "items": rows})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 
 @app.route("/api/health-history", methods=["GET"])
@@ -1810,7 +1879,7 @@ def health_history():
         return jsonify({"success": True, "items": rows})
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": _safe_error(e)}), 500
 
 # =========================
 # NLP TEXT ANALYSIS
@@ -1868,7 +1937,7 @@ def analyze_nlp():
 
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
     
 # =========================
@@ -1922,7 +1991,7 @@ def send_professional_message():
     except Exception as e:
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 
@@ -1974,7 +2043,7 @@ def my_professional_messages():
     except Exception as e:
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 
@@ -2026,7 +2095,7 @@ def save_feedback():
     except Exception as e:
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 
@@ -2069,7 +2138,7 @@ LIMIT 20
     except Exception as e:
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 
@@ -2100,6 +2169,10 @@ def dev_login():
 
 @app.route("/feedback-inbox")
 def feedback_inbox_page():
+    # Developer-only page: require the admin login or the dev portal session,
+    # otherwise send ordinary visitors to the normal login screen.
+    if not (is_admin_user() or is_dev_portal()):
+        return redirect(url_for("login"))
     return render_template("feedback_inbox.html")
 
 
@@ -2148,7 +2221,7 @@ LIMIT 200
     except Exception as e:
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": _safe_error(e)
         }), 500
 
 

@@ -35,3 +35,6 @@ f.pdf
 # CI workflow (pushing it needs a token with the workflow scope)
 .github/
 mw_audit_*.log
+
+# Per-install random Flask session key (generated on first run)
+.secret_key
