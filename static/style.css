@@ -430,201 +430,6 @@
     }
 }
 /* =====================================================
-   USER-SHARED PHONE DATA
-   Clean responsive layout
-   ===================================================== */
-
-.phone-data-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
-    width: 100%;
-    margin-top: 20px;
-}
-
-/* Individual phone data card */
-.phone-source {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-
-    padding: 20px;
-    min-width: 0;
-
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-
-    box-sizing: border-box;
-}
-
-/* Title */
-.phone-source b {
-    display: block;
-
-    width: 100%;
-    margin-bottom: 10px;
-
-    font-size: 15px;
-    line-height: 1.5;
-    font-weight: 700;
-
-    white-space: normal;
-    overflow-wrap: break-word;
-}
-
-/* Description */
-.phone-source > span {
-    display: block;
-
-    width: 100%;
-    margin-bottom: 14px;
-
-    font-size: 13px;
-    line-height: 1.6;
-
-    color: #6b7280;
-
-    white-space: normal;
-    overflow-wrap: break-word;
-}
-
-/* File input */
-.phone-source input[type="file"] {
-    width: 100%;
-    max-width: 100%;
-
-    box-sizing: border-box;
-
-    font-size: 12px;
-    margin-bottom: 8px;
-}
-
-/* Selected file text */
-.phone-source small {
-    display: block;
-
-    width: 100%;
-
-    font-size: 12px;
-    line-height: 1.5;
-
-    color: #6b7280;
-
-    overflow-wrap: break-word;
-}
-
-/* Enable row */
-.phone-source .switch-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    width: 100%;
-    margin-top: 4px;
-
-    font-size: 13px;
-    line-height: 1.4;
-
-    white-space: normal;
-}
-
-/* Checkbox */
-.phone-source .switch-row input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-
-    flex-shrink: 0;
-
-    cursor: pointer;
-}
-
-/* Privacy notice */
-.phone-data-grid + .notice {
-    margin-top: 20px;
-
-    padding: 14px 16px;
-
-    border-radius: 12px;
-
-    font-size: 13px;
-    line-height: 1.6;
-
-    overflow-wrap: break-word;
-}
-
-
-/* =====================================================
-   TABLET
-   ===================================================== */
-
-@media (max-width: 900px) {
-
-    .phone-data-grid {
-        grid-template-columns: 1fr;
-        gap: 14px;
-    }
-
-}
-
-
-/* =====================================================
-   MOBILE PHONE
-   ===================================================== */
-
-@media (max-width: 600px) {
-
-    .phone-data-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
-
-        margin-top: 16px;
-    }
-
-    .phone-source {
-        padding: 16px;
-
-        border-radius: 14px;
-    }
-
-    .phone-source b {
-        font-size: 14px;
-        line-height: 1.5;
-
-        margin-bottom: 8px;
-    }
-
-    .phone-source > span {
-        font-size: 12px;
-        line-height: 1.6;
-
-        margin-bottom: 12px;
-    }
-
-    .phone-source small {
-        font-size: 11px;
-    }
-
-    .phone-source .switch-row {
-        font-size: 12px;
-
-        padding-top: 4px;
-    }
-
-    .phone-source input[type="file"] {
-        font-size: 11px;
-    }
-
-    .phone-data-grid + .notice {
-        margin-top: 14px;
-
-        padding: 12px;
-
-        font-size: 12px;
-        line-height: 1.6;
-    }
-}
-/* =====================================================
    PRIVACY & CONSENT CENTER
    ===================================================== */
 
@@ -2932,8 +2737,8 @@ html[data-theme="dark"] [style*="background:#f7f9fc" i]{background:var(--surface
 .hr-advice[data-level="high"]{background:#fdeaea;border-color:#f2c4c4;color:#c0392f}
 html[data-theme="dark"] .hr-advice[data-level="ok"]{background:#10271c;border-color:#2f5c3e;color:#9ad6b0}
 html[data-theme="dark"] .hr-advice[data-level="low"]{background:#2a2412;border-color:#5a4a1e;color:#e8d9a8}
-html[data-theme="dark"] .hr-advice[data-level="high"]
-html[data-theme="dark"] .sidebar nav{background:var(--surface)}{background:#2b1418;border-color:#5b2730;color:#e8b4b4}
+html[data-theme="dark"] .hr-advice[data-level="high"]{background:#2b1418;border-color:#5b2730;color:#e8b4b4}
+html[data-theme="dark"] .sidebar nav{background:var(--surface)}
 
 /* ===== Feedback ===== */
 .fb-stars{display:flex;gap:6px;justify-content:center;margin:12px 0;font-size:20px}
@@ -2942,3 +2747,31 @@ html[data-theme="dark"] .sidebar nav{background:var(--surface)}{background:#2b14
 .fb-star.active{color:#f5a623}
 html[data-theme="dark"] .fb-star{color:#4a4f5c}
 html[data-theme="dark"] .fb-star.active{color:#f7b733}
+
+/* ===== AI Support Chat — floating panel ===== */
+.ai-chat-panel{
+    display:none;
+    position:fixed;
+    right:24px;
+    bottom:24px;
+    z-index:999900;
+    width:380px;
+    max-width:calc(100vw - 32px);
+    max-height:calc(100vh - 48px);
+    overflow-y:auto;
+    box-sizing:border-box;
+    margin-top:0;
+    padding:20px;
+    border-radius:16px;
+    background:#fff;
+    border:1px solid #e5e9ef;
+    box-shadow:0 18px 50px rgba(2,8,23,.22);
+    animation:aiChatPop .18s ease;
+}
+#aiChatMessages{scroll-behavior:smooth}
+@keyframes aiChatPop{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+html[data-theme="dark"] .ai-chat-panel{background:var(--surface,#101a2b);border-color:var(--border,#24324a)}
+@media (max-width:700px){
+    .ai-chat-panel{right:12px;left:12px;bottom:12px;width:auto;max-height:70vh;padding:16px}
+}
+

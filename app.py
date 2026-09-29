@@ -1363,8 +1363,6 @@ ORDER BY collected_at DESC
 @app.route("/save-consent", methods=["POST"])
 def save_consent():
 
-    print("SAVE CONSENT ROUTE CALLED")
-
     if "user_id" not in session:
         return jsonify({
             "success": False,
@@ -1373,9 +1371,7 @@ def save_consent():
 
     try:
 
-        data = request.get_json()
-
-        print("Received data:", data)
+        data = request.get_json() or {}
 
         user_id = session["user_id"]
 
@@ -1396,8 +1392,6 @@ def save_consent():
         )
 
         existing = cursor.fetchone()
-
-        print("Existing consent:", existing)
 
         if existing:
 
@@ -1455,8 +1449,6 @@ def save_consent():
 
         cursor.close()
         connection.close()
-
-        print("CONSENT SAVED SUCCESSFULLY")
 
         return jsonify({
             "success": True,
@@ -1879,23 +1871,6 @@ def analyze_nlp():
             "message": str(e)
         }), 500
     
-# =========================
-# TEST DATABASE
-# =========================
-@app.route("/test-db")
-def test_database():
-
-    try:
-        connection = get_db_connection()
-
-        if connection.is_connected():
-            connection.close()
-            return "MySQL Database Connected Successfully!"
-
-    except Exception as e:
-        return f"Database connection failed: {e}"
-
-
 # =========================
 # SEND PROFESSIONAL MESSAGE (one-to-one)
 # =========================
