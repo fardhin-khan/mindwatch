@@ -8,7 +8,7 @@
   <script>try{var _t=localStorage.getItem('mw-theme');if(_t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <script>window.__latestAssessment = {{ assessment|tojson|safe }};</script>
   <script>window.APP_VAPID_PUBLIC_KEY = {{ vapid_public_key|tojson }};</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=202609100033">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=202609100034">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
@@ -35,9 +35,6 @@
     </button>
 
     <button class="nav-item" data-page="history" type="button"><span>Assessment History</span>
-    </button>
-
-    <button class="nav-item" data-page="profile" type="button"><span>Profile</span>
     </button>
 
     <button class="nav-item logout-item" type="button" id="logoutBtn"><span>Logout</span>
@@ -402,7 +399,7 @@
 
     <div class="questions"><label>
             How often have you felt unusually sad or low?
-            <select class="q" data-domain="sadness" data-weight="2">
+            <select class="q" data-weight="2">
                 <option value="0">Not at all</option>
                 <option value="1">Sometimes</option>
                 <option value="2">Often</option>
@@ -412,7 +409,7 @@
 
         <label>
             How difficult has concentration been?
-            <select class="q" data-domain="concentration" data-weight="1">
+            <select class="q" data-weight="1">
                 <option value="0">Not difficult</option>
                 <option value="1">A little</option>
                 <option value="2">Quite difficult</option>
@@ -422,7 +419,7 @@
 
         <label>
             How often have you felt overwhelmed by daily tasks?
-            <select class="q" data-domain="overwhelmed" data-weight="2">
+            <select class="q" data-weight="2">
                 <option value="0">Not at all</option>
                 <option value="1">Sometimes</option>
                 <option value="2">Often</option>
@@ -432,7 +429,7 @@
 
         <label>
             How satisfied are you with your sleep?
-            <select class="q" data-domain="sleep" data-weight="1">
+            <select class="q" data-weight="1">
                 <option value="0">Very satisfied</option>
                 <option value="1">Mostly satisfied</option>
                 <option value="2">Not satisfied</option>
@@ -507,7 +504,7 @@
 
 </div>
 
-
+    </section>
 
    <!-- MONITORING -->
 <section id="alerts" class="page">
@@ -805,18 +802,6 @@
 
 
     <div class="card" style="margin-top:18px;">
-      <div class="breakdown-head"><h3>Questionnaire Analysis</h3>
-        <span class="breakdown-legend"><i></i>By category</span>
-      </div>
-      <div id="questionBreakdown">
-        <div class="bar-row"><div class="bar-label"><span>Sadness</span><b id="qdSadness">--</b></div><div class="bar-bg"><div class="bar-fill" id="qdSadnessBar" style="width:0%"></div></div></div>
-        <div class="bar-row"><div class="bar-label"><span>Concentration</span><b id="qdConcentration">--</b></div><div class="bar-bg"><div class="bar-fill" id="qdConcentrationBar" style="width:0%"></div></div></div>
-        <div class="bar-row"><div class="bar-label"><span>Overwhelmed</span><b id="qdOverwhelmed">--</b></div><div class="bar-bg"><div class="bar-fill" id="qdOverwhelmedBar" style="width:0%"></div></div></div>
-        <div class="bar-row"><div class="bar-label"><span>Sleep Satisfaction</span><b id="qdSleep">--</b></div><div class="bar-bg"><div class="bar-fill" id="qdSleepBar" style="width:0%"></div></div></div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:18px;">
       <div class="breakdown-head"><h3>Indicator Breakdown</h3>
         <span class="breakdown-legend"><i></i>Higher = more risk</span>
       </div>
@@ -1068,22 +1053,6 @@
 
         </div>
 
-        <div class="support-card resources-card"><h3>🆘 Resources &amp; Helplines</h3>
-            <p>
-                Free, confidential support you can reach right now. If you
-                are ever in crisis, talk to someone immediately.
-            </p>
-            <ul class="helpline-list">
-                <li><span>🏳️ Crisis Line (24/7)</span><b>988</b></li>
-                <li><span>National Self-Harm Helpline</span><b>866-488-7386</b></li>
-                <li><span>Text HELP to Crisis Text Line</span><b>741741</b></li>
-            </ul>
-            <div class="helpline-note">
-                Emergency services: call your local emergency number
-                (e.g. 911 / 999 / 112) if you are in immediate danger.
-            </div>
-        </div>
-
     </div>
 
     <!-- MY MESSAGES -->
@@ -1294,61 +1263,6 @@
 
 </section>
 
-<section id="profile" class="page">
-
-  <div class="section-title"><div><p class="eyebrow">ACCOUNT</p>
-      <h2>Profile</h2>
-      <p class="muted">
-        Manage your account details, password and data-sharing consents.
-      </p>
-    </div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-head"><div><h3>Account Details</h3>
-          <p>Your name is shown in the app header and reports.</p>
-        </div>
-      </div>
-      <label>Full name
-        <input type="text" id="profileName" value="{{ user_name }}">
-      </label>
-      <label>Email address
-        <input type="email" id="profileEmail" value="{{ user_email }}" readonly>
-      </label>
-      <p class="muted" id="profileSaveStatus"></p>
-      <button type="button" class="primary" style="width:100%;" onclick="saveProfileName()">Save name</button>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><div><h3>Change Password</h3>
-          <p>Use a strong, unique password.</p>
-        </div>
-      </div>
-      <label>Current password
-        <input type="password" id="pwCurrent" autocomplete="current-password">
-      </label>
-      <label>New password
-        <input type="password" id="pwNew" autocomplete="new-password">
-      </label>
-      <label>Confirm new password
-        <input type="password" id="pwConfirm" autocomplete="new-password">
-      </label>
-      <p class="muted" id="pwStatus"></p>
-      <button type="button" class="primary" style="width:100%;" onclick="changeMyPassword()">Update password</button>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:18px;">
-    <div class="card-head"><div><h3>Data-Sharing Consents</h3>
-        <p>Which data sources you have allowed MindWatch to use.</p>
-      </div>
-    </div>
-    <div id="profileConsentList" class="muted">Loading consent status...</div>
-  </div>
-
-</section>
-
 <!-- SUPPORT MESSAGE MODAL -->
 
 <div
@@ -1494,7 +1408,7 @@
 </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{{ url_for('static', filename='script.js') }}?v=202609100033"></script>
+<script src="{{ url_for('static', filename='script.js') }}?v=202609100034"></script>
 
   <div id="reportDocument" class="report-document">
     <div class="report-header">

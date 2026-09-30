@@ -35,73 +35,6 @@ CRISIS = {
     "take my life", "don't want to live", "want to die", "better off dead"
 }
 
-# Generic stop-words removed during preprocessing. Negators and
-# intensifiers are deliberately kept so the lexicon scorer can still
-# see negation/emphasis context around each keyword.
-GENERIC_STOP_WORDS = {
-    "a", "an", "the", "and", "or", "but", "if", "then", "else", "while",
-    "am", "are", "was", "were", "be", "been", "being", "is", "do", "does",
-    "did", "doing", "has", "have", "had", "having", "i", "me", "my", "mine",
-    "you", "your", "yours", "he", "him", "his", "she", "her", "hers", "it",
-    "its", "we", "us", "our", "they", "them", "their", "this", "that",
-    "these", "those", "at", "by", "for", "with", "about", "between", "into",
-    "through", "of", "to", "from", "in", "on", "as", "so", "such", "than",
-    "then", "too", "can", "will", "just", "should", "would", "could", "now",
-    "what", "which", "who", "whom", "when", "where", "why", "how", "all",
-    "any", "both", "each", "few", "more", "most", "other", "some", "only",
-    "own", "same", "again", "also", "off", "over", "under", "while", "upon"
-}
-
-# Simple suffix normaliser so "stressing" -> "stress", "crying" -> "cry",
-# "feeling" -> "feel". Only applied when the shorter form exists in the
-# lexicon (checked in _lookup), so misspellings are never punished.
-_SUFFIXES = (("ing", 3), ("ed", 2), ("es", 2), ("s", 1))
-
-
-def _normalize(word):
-    for suffix, cut in _SUFFIXES:
-        if len(word) > 4 and word.endswith(suffix):
-            return word[:-cut]
-    return word
-
-
-def preprocess_text(text):
-    """Preprocessing pipeline: clean -> lowercase -> tokenize ->
-    stop-word removal.
-
-    Negators and intensifiers are always kept so the analysis layer
-    can still detect negation and emphasis. Normalisation happens
-    inside _lookup only when a dictionary form is found.
-    """
-
-    if not text:
-        return []
-
-    # Cleaning: replace smart quotes / dashes with spaces
-    cleaned = re.sub(r"[\u2018\u2019\u201C\u201D'\"-]", " ", text)
-
-    # Lowercase + tokenization
-    tokens = re.findall(r"[a-z]+(?:'[a-z]+)?", cleaned.lower())
-
-    # Stop-word removal (negators + intensifiers always kept)
-    return [
-        token for token in tokens
-        if token not in GENERIC_STOP_WORDS
-        or token in NEGATORS
-        or token in INTENSIFIERS
-    ]
-
-
-def _lookup(word):
-    """Lexicon hit for a word, with a light normalisation fallback."""
-
-    if word in NEGATIVE or word in POSITIVE:
-        return word
-    base = _normalize(word)
-    if base != word and (base in NEGATIVE or base in POSITIVE):
-        return base
-    return None
-
 
 def _lexicon_score(tokens):
     """Negation- and intensifier-aware local scoring."""
@@ -121,15 +54,13 @@ def _lexicon_score(tokens):
             (i > 1 and tokens[i - 2] in NEGATORS)
         )
 
-        hit = _lookup(word)
-
-        if hit in NEGATIVE:
+        if word in NEGATIVE:
             if negated:
                 pos_score += 0.5
             else:
                 neg_score += 1.0 * multiplier
 
-        elif hit in POSITIVE:
+        elif word in POSITIVE:
             if negated:
                 neg_score += 0.5
             else:
@@ -154,20 +85,8 @@ def analyze_text(text):
         }
 
     lower = text.lower()
-    raw_tokens = re.findall(r"\b[\w'']+\b", lower)
-    raw_words = len(raw_tokens)
-
-    # Preprocessing layer: clean -> lowercase -> tokenize -> stop-word
-    # removal -> normalise (negators/intensifiers preserved).
-    tokens = preprocess_text(text)
-
-    # Feature counters
-    unique_words = len(set(tokens))
-    avg_word_len = round(
-        (sum(len(w) for w in tokens) / len(tokens)) if tokens else 0,
-        1
-    )
-    stop_words_removed = max(0, len(raw_tokens) - len(tokens))
+    tokens = re.findall(r"\b\w+\b", lower)
+    word_count = len(tokens)
 
     # Crisis language always maps to maximum risk.
     crisis = any(phrase in lower for phrase in CRISIS)
@@ -194,12 +113,7 @@ def analyze_text(text):
     return {
         "sentiment": sentiment,
         "text_risk": text_risk,
-        "word_count": raw_words,
-        "text_features": {
-            "unique_words": unique_words,
-            "avg_word_length": avg_word_len,
-            "stop_words_removed": stop_words_removed
-        }
+        "word_count": word_count
     }
 
 

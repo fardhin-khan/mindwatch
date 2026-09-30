@@ -675,7 +675,6 @@ def dashboard():
         return render_template(
             "index.html",
             user_name=session["user_name"],
-            user_email=session.get("user_email") or "",
             assessment=assessment,
             csrf_token=get_csrf_token(),
             vapid_public_key=VAPID_PUBLIC_KEY
@@ -2220,123 +2219,6 @@ LIMIT 20
         return jsonify({
             "success": True,
             "feedback": items
-        })
-
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": _safe_error(e)
-        }), 500
-
-
-# =========================
-# PROFILE (account details + password)
-# =========================
-
-@app.route("/update-profile", methods=["POST"])
-def update_profile():
-
-    if "user_id" not in session:
-        return jsonify({
-            "success": False,
-            "message": "Login required."
-        }), 401
-
-    try:
-        data = request.get_json(silent=True) or {}
-        name = (data.get("name") or "").strip()
-
-        if not name:
-            return jsonify({
-                "success": False,
-                "message": "Name cannot be empty."
-            }), 400
-
-        if len(name) > 120:
-            return jsonify({
-                "success": False,
-                "message": "Name is too long."
-            }), 400
-
-        connection = get_db_connection()
-        cursor = connection.cursor()
-        cursor.execute(
-            "UPDATE users SET name = %s WHERE id = %s",
-            (name, session["user_id"])
-        )
-        connection.commit()
-        cursor.close()
-        connection.close()
-
-        session["user_name"] = name
-
-        return jsonify({
-            "success": True,
-            "message": "Name updated!",
-            "user_name": name
-        })
-
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": _safe_error(e)
-        }), 500
-
-
-@app.route("/change-password", methods=["POST"])
-def change_password():
-
-    if "user_id" not in session:
-        return jsonify({
-            "success": False,
-            "message": "Login required."
-        }), 401
-
-    try:
-        data = request.get_json(silent=True) or {}
-        current = data.get("current_password") or ""
-        new_password = data.get("new_password") or ""
-
-        if not current or not new_password:
-            return jsonify({
-                "success": False,
-                "message": "Both passwords are required."
-            }), 400
-
-        if len(new_password) < 6:
-            return jsonify({
-                "success": False,
-                "message": "New password must be at least 6 characters."
-            }), 400
-
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute(
-            "SELECT password FROM users WHERE id = %s",
-            (session["user_id"],)
-        )
-        row = cursor.fetchone()
-
-        if row is None or not check_password_hash(row["password"], current):
-            cursor.close()
-            connection.close()
-            return jsonify({
-                "success": False,
-                "message": "Current password is incorrect."
-            }), 400
-
-        hashed = generate_password_hash(new_password)
-        cursor.execute(
-            "UPDATE users SET password = %s WHERE id = %s",
-            (hashed, session["user_id"])
-        )
-        connection.commit()
-        cursor.close()
-        connection.close()
-
-        return jsonify({
-            "success": True,
-            "message": "Password updated successfully."
         })
 
     except Exception as e:
