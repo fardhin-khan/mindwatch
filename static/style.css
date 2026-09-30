@@ -2775,3 +2775,20 @@ html[data-theme="dark"] .ai-chat-panel{background:var(--surface,#101a2b);border-
     .ai-chat-panel{right:12px;left:12px;bottom:12px;width:auto;max-height:70vh;padding:16px}
 }
 
+
+
+/* ===== Profile & resources additions ===== */
+.helpline-list{list-style:none;margin:10px 0 0;padding:0}
+.helpline-list li{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #e6eaf0;border-radius:9px;margin-bottom:7px;font-size:13px;background:#fafcff}
+.helpline-list li span{color:#59687b}
+.helpline-list li b{color:#173b68;font-family:monospace;font-size:14px}
+.helpline-note{margin-top:10px;font-size:12px;color:#8a94a6;line-height:1.5;padding:9px 11px;background:#fff6ee;border-radius:9px}
+.consent-summary{display:flex;flex-wrap:wrap;gap:8px}
+.consent-chip{font-size:12px;padding:7px 11px;border-radius:20px;border:1px solid #e0e6ef}
+.consent-chip.on{background:#e9f7ef;color:#237a4b;border-color:#b9e3cb}
+.consent-chip.off{background:#f5f7fa;color:#8a94a6;border-color:#e0e6ef}
+html[data-theme="dark"] .helpline-list li{background:#1d2433;border-color:#2b3346}
+html[data-theme="dark"] .helpline-list li b{color:#e5edf8}
+html[data-theme="dark"] .helpline-note{background:#2a2320;color:#cfc4b4}
+html[data-theme="dark"] .consent-chip.on{background:#132b1f;color:#6fd49c;border-color:#2c5a41}
+html[data-theme="dark"] .consent-chip.off{background:#1d2433;color:#8a94a6;border-color:#2b3346}

@@ -101,6 +101,172 @@ const state = {
 // Re-populate a section's dynamic data whenever it becomes visible.
 // This guarantees data is shown even after the logout modal is cancelled
 // (which never changes the page but the user may perceive as "empty").
+// Fill the per-category questionnaire analysis on the Reports page.
+// Accepts a saved { domain: percent } map (or falls back to reading the
+// current questionnaire selects live).
+function fillQuestionBreakdown(domains) {
+    var labels = {
+        sadness: "Sadness",
+        concentration: "Concentration",
+        overwhelmed: "Overwhelmed",
+        sleep: "Sleep Satisfaction"
+    };
+
+    var map = {};
+    if (domains && typeof domains === "object") {
+        map = domains;
+    } else {
+        var score = {};
+        var mx = {};
+        document.querySelectorAll(".q").forEach(function (q) {
+            var d = q.dataset.domain || "other";
+            var v = Number(q.value);
+            var w = Number(q.dataset.weight);
+            score[d] = (score[d] || 0) + v * w;
+            mx[d] = (mx[d] || 0) + 3 * w;
+        });
+        Object.keys(mx).forEach(function (d) {
+            map[d] = mx[d] > 0 ? Math.round((score[d] / mx[d]) * 100) : 0;
+        });
+    }
+
+    Object.keys(labels).forEach(function (key) {
+        var el = document.getElementById("qd" + capitalize(key));
+        var bar = document.getElementById("qd" + capitalize(key) + "Bar");
+        if (!el && !bar) return;
+        var pct = Math.max(0, Math.min(100, Number(map[key]) || 0));
+        var color = pct < 40 ? "#3aa17a" : pct < 70 ? "#e0a33c" : "#d64545";
+        if (el) el.textContent = pct + "%";
+        if (bar) {
+            bar.style.width = pct + "%";
+            bar.style.background = color;
+        }
+    });
+}
+
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+
+// ======================================================
+// PROFILE (account details, password, consents)
+// ======================================================
+
+function profileToken() {
+    const m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.getAttribute("content") : "";
+}
+
+function saveProfileName() {
+    const nameInput = document.getElementById("profileName");
+    const status = document.getElementById("profileSaveStatus");
+    if (!nameInput) return;
+
+    const name = nameInput.value.trim();
+    if (!name) {
+        if (status) status.textContent = "Name cannot be empty.";
+        return;
+    }
+
+    fetch("/update-profile", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": profileToken()
+        },
+        body: JSON.stringify({ name: name })
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                if (status) status.textContent = "Name saved. You can see it in the header now.";
+                const chip = document.querySelector(".topbar .profile b");
+                if (chip) chip.textContent = name;
+            } else {
+                if (status) status.textContent = data.message || "Could not save name.";
+            }
+        })
+        .catch(function () {
+            if (status) status.textContent = "Network error while saving.";
+        });
+}
+
+function changeMyPassword() {
+    const cur = document.getElementById("pwCurrent");
+    const nw = document.getElementById("pwNew");
+    const cf = document.getElementById("pwConfirm");
+    const status = document.getElementById("pwStatus");
+    if (!cur || !nw || !cf || !status) return;
+
+    const current = cur.value;
+    const next = nw.value;
+    const confirm = cf.value;
+
+    if (!current) { status.textContent = "Enter your current password."; return; }
+    if (next.length < 6) { status.textContent = "New password must be at least 6 characters."; return; }
+    if (next !== confirm) { status.textContent = "New passwords do not match."; return; }
+    if (next === current) { status.textContent = "New password must differ from the current one."; return; }
+
+    status.textContent = "Updating...";
+
+    fetch("/change-password", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": profileToken()
+        },
+        body: JSON.stringify({
+            current_password: current,
+            new_password: next
+        })
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            status.textContent = data.message || "";
+            if (data.success) {
+                cur.value = ""; nw.value = ""; cf.value = "";
+            }
+        })
+        .catch(function () {
+            status.textContent = "Network error while changing password.";
+        });
+}
+
+function loadProfileConsents() {
+    const box = document.getElementById("profileConsentList");
+    if (!box) return;
+
+    fetch("/get-consent", { headers: { "X-CSRFToken": profileToken() } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            const flags = [
+                ["questionnaire", "Questionnaire answers"],
+                ["journal_text", "Journal / text entries"],
+                ["shared_chat", "Shared chat files"],
+                ["app_usage", "App usage monitoring"],
+                ["notifications", "Push reminders"],
+                ["health_data", "Health data (heart rate, sleep, steps)"]
+            ];
+            if (data && data.consent) {
+                box.innerHTML =
+                    '<div class="consent-summary">' +
+                    flags.map(function (f) {
+                        var on = !!Number(data.consent[f[0]]);
+                        return '<div class="consent-chip ' + (on ? "on" : "off") + '">' +
+                            (on ? "\u2713" : "\u2013") + " " + f[1] + "</div>";
+                    }).join("") +
+                    "</div>";
+            } else {
+                box.textContent = "No consent saved yet. Set your preferences on the Data page.";
+            }
+        })
+        .catch(function () {
+            box.textContent = "Could not load consent status.";
+        });
+}
+
+
 function refreshSection(pageId) {
     if (!pageId || refreshSection._busy) return;
     refreshSection._busy = true;
@@ -117,6 +283,8 @@ function refreshSection(pageId) {
         } else if (pageId === "support") {
             if (typeof renderDailyTips === "function") renderDailyTips();
             if (typeof loadMyProfessionalMessages === "function") loadMyProfessionalMessages();
+        } else if (pageId === "profile") {
+            if (typeof loadProfileConsents === "function") loadProfileConsents();
         }
     } finally {
         refreshSection._busy = false;
@@ -928,6 +1096,10 @@ async function runAIScreening() {
 
     let questionMax = 0;
 
+    // Per-category analysis (Sadness / Concentration / Overwhelmed / Sleep)
+    const qdScore = {};
+    const qdMax = {};
+
 
     document.querySelectorAll(".q").forEach(
         question => {
@@ -944,8 +1116,29 @@ async function runAIScreening() {
             questionMax +=
                 3 * weight;
 
+            const domain =
+                question.dataset.domain || "other";
+
+            qdScore[domain] =
+                (qdScore[domain] || 0) +
+                value * weight;
+
+            qdMax[domain] =
+                (qdMax[domain] || 0) +
+                3 * weight;
+
         }
     );
+
+    const questionDomains = {};
+    Object.keys(qdMax).forEach(function (domain) {
+        questionDomains[domain] =
+            qdMax[domain] > 0
+                ? Math.round(
+                    (qdScore[domain] / qdMax[domain]) * 100
+                )
+                : 0;
+    });
 
 
     const questionRisk =
@@ -1162,6 +1355,10 @@ window.wellnessScore = score;
     });
 
 
+    // Per-category questionnaire analysis
+    fillQuestionBreakdown(questionDomains);
+
+
     // Save MySQL
     await saveAssessmentToDatabase({
 
@@ -1191,6 +1388,7 @@ window.wellnessScore = score;
 
         risk_breakdown: {
             qPct: questionRisk,
+            question_domains: questionDomains,
             sleepRisk: sleepRisk,
             activityRisk: activityRisk,
             screenRisk: screenRisk,
@@ -2517,6 +2715,8 @@ if (
         stressRisk: Number(breakdown.stressRisk) || 0,
         textRisk: Number(breakdown.textRisk) || 0
     });
+
+    fillQuestionBreakdown(breakdown.question_domains);
 
 }
 
@@ -5694,6 +5894,11 @@ var pageMeta = {
         eyebrow: "CARE / SUPPORT",
         title: "MindWatch",
         subtitle: "Connect users with appropriate next steps."
+    },
+    profile: {
+        eyebrow: "ACCOUNT",
+        title: "MindWatch",
+        subtitle: "Manage your account details, password and consents."
     }
 };
 
@@ -5738,6 +5943,11 @@ window.showPage = function(pageId) {
     // Refresh the Risk Alerts panel whenever that page is opened
     if (pageId === "alerts" && window.__updateRiskAlertUI) {
         window.__updateRiskAlertUI(window.__latestRisk);
+    }
+
+    // Refresh the per-category questionnaire analysis on Reports
+    if (pageId === "reports") {
+        fillQuestionBreakdown();
     }
 
     refreshSection(pageId);
